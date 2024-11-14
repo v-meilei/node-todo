@@ -1,0 +1,48 @@
+name: Trigger auto deployment for mei-qsupws
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ master ]
+    paths:
+    - '**'
+    - '.github/workflows/mei-qsupws-AutoDeployTrigger-ae1a1be8-b8e7-4c89-a3f0-b08275b9ffa0.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.MEIQSUPWS_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.MEIQSUPWS_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.MEIQSUPWS_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          registryUrl: meiacr.azurecr.io
+          registryUsername: ${{ secrets.MEIQSUPWS_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.MEIQSUPWS_REGISTRY_PASSWORD }}
+          containerAppName: mei-qsupws
+          resourceGroup: mei-env
+          imageToBuild: meiacr.azurecr.io/mei-qsupws:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
